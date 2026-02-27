@@ -1,0 +1,17 @@
+{
+  "name": "ScoutCard - Greenhouse Pest Monitor",
+  "short_name": "ScoutCard",
+  "description": "AI-powered sticky trap scanner for greenhouse pest monitoring",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f5f5f0",
+  "theme_color": "#16a34a",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
