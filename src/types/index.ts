@@ -7,10 +7,14 @@ export type PestType =
   | 'leafminer'
   | 'other';
 
+export type ConsistencyLevel = 'high' | 'medium' | 'low';
+
 export interface PestCount {
   type: PestType;
   count: number;
   confidence: number;
+  passResults?: number[];
+  consistency?: ConsistencyLevel;
 }
 
 export interface Scan {
@@ -110,3 +114,111 @@ export const DEFAULT_THRESHOLDS: ThresholdConfig[] = [
   { pestType: 'leafminer', watch: 1, action: 3, critical: 8 },
   { pestType: 'other', watch: 10, action: 20, critical: 40 },
 ];
+
+// ========== Germ Types ==========
+
+export type TraySize = '128' | '200' | '288' | '512' | 'custom';
+
+export const TRAY_SIZE_LABELS: Record<TraySize, string> = {
+  '128': '128 cells',
+  '200': '200 cells',
+  '288': '288 cells',
+  '512': '512 cells',
+  'custom': 'Custom',
+};
+
+export interface SeedLot {
+  id: string;
+  name: string;
+  crop: string;
+  variety: string;
+  supplier: string;
+  seedDate: string; // ISO date
+  traySize: TraySize;
+  customTraySize?: number;
+  trayCount: number;
+  expectedGermDays: number; // typically 5-14
+  germTarget: number; // target germ rate percentage, e.g. 90
+  notes: string;
+  active: boolean;
+}
+
+export interface GermScan {
+  id: string;
+  lotId: string;
+  timestamp: string;
+  imageData?: string; // base64 thumbnail
+  totalCells: number;
+  germinatedCells: number;
+  emptyCount: number;
+  abnormalCount: number;
+  germRate: number; // 0-100 percentage
+  notes: string;
+  analyzed: boolean;
+  analyzing: boolean;
+  daysAfterSeeding: number;
+}
+
+export interface GermTrendDataPoint {
+  date: string;
+  label: string;
+  germRate: number;
+  lotId: string;
+  lotName: string;
+}
+
+export const GERM_STATUS_COLORS = {
+  excellent: '#22c55e', // >=90%
+  good: '#84cc16',      // >=80%
+  fair: '#eab308',      // >=70%
+  poor: '#f97316',      // >=50%
+  failing: '#ef4444',   // <50%
+} as const;
+
+export type GermStatus = keyof typeof GERM_STATUS_COLORS;
+
+export function getGermStatus(rate: number): GermStatus {
+  if (rate >= 90) return 'excellent';
+  if (rate >= 80) return 'good';
+  if (rate >= 70) return 'fair';
+  if (rate >= 50) return 'poor';
+  return 'failing';
+}
+
+export const GERM_STATUS_LABELS: Record<GermStatus, string> = {
+  excellent: 'Excellent',
+  good: 'Good',
+  fair: 'Fair',
+  poor: 'Poor',
+  failing: 'Failing',
+};
+
+// ========== Highlight Overlay Types ==========
+
+export type HighlightMode = 'scout' | 'germ';
+
+export type GermCellCategory = 'germinated' | 'empty' | 'abnormal';
+
+export interface HighlightLocation {
+  x: number; // 0-1 normalized
+  y: number; // 0-1 normalized
+}
+
+export interface HighlightResult {
+  locations: HighlightLocation[];
+  count: number;
+  description: string;
+  error?: string;
+}
+
+export const GERM_HIGHLIGHT_COLORS: Record<GermCellCategory, string> = {
+  germinated: '#22c55e',
+  empty: '#9ca3af',
+  abnormal: '#f97316',
+};
+
+export const GERM_HIGHLIGHT_LABELS: Record<GermCellCategory, string> = {
+  germinated: 'Germinated',
+  empty: 'Empty',
+  abnormal: 'Abnormal',
+};
