@@ -8,6 +8,7 @@ interface ImageOverlayProps {
   mode: HighlightMode;
   targetType: string;
   targetLabel: string;
+  expectedCount: number;
   markerColor: string;
   onClose: () => void;
 }
@@ -17,6 +18,7 @@ export default function ImageOverlay({
   mode,
   targetType,
   targetLabel,
+  expectedCount,
   markerColor,
   onClose,
 }: ImageOverlayProps) {
@@ -32,7 +34,7 @@ export default function ImageOverlay({
     async function load() {
       setLoading(true);
       setError(null);
-      const result = await fetchHighlightLocations(image, mode, targetType, targetLabel);
+      const result = await fetchHighlightLocations(image, mode, targetType, targetLabel, expectedCount);
       if (cancelled) return;
 
       if (result.error) {
@@ -47,7 +49,7 @@ export default function ImageOverlay({
 
     load();
     return () => { cancelled = true; };
-  }, [image, mode, targetType, targetLabel]);
+  }, [image, mode, targetType, targetLabel, expectedCount]);
 
   return (
     <div className="fixed inset-0 z-50 bg-black/90 flex flex-col">

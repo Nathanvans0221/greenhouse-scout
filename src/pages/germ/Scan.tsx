@@ -497,6 +497,11 @@ export default function GermScan() {
           mode="germ"
           targetType={highlightCategory}
           targetLabel={GERM_HIGHLIGHT_LABELS[highlightCategory]}
+          expectedCount={
+            highlightCategory === 'germinated' ? germinatedCells
+              : highlightCategory === 'empty' ? emptyCount
+              : abnormalCount
+          }
           markerColor={GERM_HIGHLIGHT_COLORS[highlightCategory]}
           onClose={() => setHighlightCategory(null)}
         />

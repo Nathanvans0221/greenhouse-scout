@@ -6,6 +6,7 @@ export async function fetchHighlightLocations(
   mode: HighlightMode,
   targetType: string,
   targetLabel: string,
+  expectedCount: number,
 ): Promise<HighlightResult> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 30000);
@@ -14,7 +15,7 @@ export async function fetchHighlightLocations(
     const response = await fetch(HIGHLIGHT_ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ image, mode, targetType, targetLabel }),
+      body: JSON.stringify({ image, mode, targetType, targetLabel, expectedCount }),
       signal: controller.signal,
     });
 

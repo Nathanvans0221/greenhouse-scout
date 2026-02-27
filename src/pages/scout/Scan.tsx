@@ -484,6 +484,7 @@ export default function Scan() {
           mode="scout"
           targetType={highlightPest}
           targetLabel={PEST_LABELS[highlightPest]}
+          expectedCount={pests.find((p) => p.type === highlightPest)?.count ?? 0}
           markerColor={PEST_COLORS[highlightPest]}
           onClose={() => setHighlightPest(null)}
         />

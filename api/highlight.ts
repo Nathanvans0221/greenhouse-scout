@@ -15,18 +15,33 @@ interface HighlightResponse {
   description: string;
 }
 
-function buildScoutPrompt(targetLabel: string): string {
-  return `You are an expert greenhouse IPM scout. You will receive a photo of a sticky trap card.
+const PEST_ID_GUIDE: Record<string, string> = {
+  'Whitefly': 'Oval body (1-1.5mm), appears orange on adhesive (loses white waxy coating). Wings extend past body. Very common on yellow cards.',
+  'Thrips': 'Elongated cigar-shaped body (<2mm), very small, orange/amber color. Antennae and fringed wings usually break off in glue. Found on both yellow and blue cards. Do NOT confuse with whitefly (oval, larger) or other small debris.',
+  'Fungus Gnat': 'Dark gray/black (3-4mm), mosquito-like, delicate. Long skinny legs, Y-shaped wing vein. Single pair of gray wings.',
+  'Shore Fly': 'Dark, stocky, compact body (3mm, housefly-like). Short wings with 5 pale/light spots. Much stockier than fungus gnats.',
+  'Aphid': 'Pear/teardrop shaped (2-3mm, winged form), transparent wings held vertically. Two cornicles ("tailpipes") on rear.',
+  'Leafminer': 'Very small fly (1.5-2.5mm), yellow-and-black coloring, compact body.',
+};
 
-Your task: Identify the approximate locations of all **${targetLabel}** on this sticky trap card.
+function buildScoutPrompt(targetLabel: string, expectedCount: number): string {
+  const idGuide = PEST_ID_GUIDE[targetLabel] || '';
+  const idSection = idGuide
+    ? `\n\nIDENTIFICATION GUIDE for ${targetLabel}:\n${idGuide}\n\nOnly mark insects that match this description. Do NOT mark other pest types, debris, or smudges.`
+    : '';
 
-For each individual ${targetLabel} you can see, provide its approximate position as normalized coordinates:
-- x: 0.0 = left edge, 1.0 = right edge
-- y: 0.0 = top edge, 1.0 = bottom edge
+  return `You are an expert greenhouse IPM scout. You will receive a photo of a yellow or blue sticky trap card.
 
-Be as accurate as possible with placement. Mark each individual insect, not clusters.
+A prior multi-pass analysis determined there are approximately **${expectedCount}** ${targetLabel} on this card. Your job is to locate those ~${expectedCount} insects and provide their positions.${idSection}
 
-Respond ONLY with valid JSON in this exact format:
+CRITICAL RULES:
+- You should find approximately ${expectedCount} ${targetLabel} (within ±2). If you are finding significantly more, you are likely misidentifying other insects or debris as ${targetLabel}.
+- Only mark insects you are confident are ${targetLabel}. Skip anything uncertain.
+- Provide normalized coordinates for each:
+  - x: 0.0 = left edge, 1.0 = right edge
+  - y: 0.0 = top edge, 1.0 = bottom edge
+
+Respond ONLY with valid JSON:
 {
   "locations": [
     {"x": 0.23, "y": 0.45},
@@ -39,23 +54,24 @@ Respond ONLY with valid JSON in this exact format:
 If none are found, return empty locations array with count 0.`;
 }
 
-function buildGermPrompt(targetLabel: string): string {
+function buildGermPrompt(targetLabel: string, expectedCount: number): string {
   return `You are an expert greenhouse propagation specialist. You will receive a photo of a plug tray (seedling tray).
 
-Your task: Identify the approximate locations of all **${targetLabel} cells** on this plug tray.
+A prior multi-pass analysis determined there are approximately **${expectedCount}** ${targetLabel} cells on this tray. Your job is to locate those ~${expectedCount} cells and provide their positions.
 
-For each ${targetLabel} cell you can see, provide its approximate position as normalized coordinates:
-- x: 0.0 = left edge, 1.0 = right edge
-- y: 0.0 = top edge, 1.0 = bottom edge
+Cell definitions (be strict):
+- "Germinated" = cells with visible green seedling emergence (green shoot, cotyledons, or true leaves above media)
+- "Empty" = cells with NO germination whatsoever (just soil/media visible, no green growth at all)
+- "Abnormal" = cells with damped-off, wilted, yellow/brown, or clearly unhealthy seedlings
 
-Cell definitions:
-- "germinated" = cells with visible green seedling emergence
-- "empty" = cells with no germination (just soil/media, no green growth)
-- "abnormal" = cells with damped-off, wilted, or clearly unhealthy seedlings
+CRITICAL RULES:
+- You should find approximately ${expectedCount} ${targetLabel} cells (within ±3). Do not over-count.
+- Only mark cells you are confident match the "${targetLabel}" category.
+- Provide normalized coordinates for the center of each cell:
+  - x: 0.0 = left edge, 1.0 = right edge
+  - y: 0.0 = top edge, 1.0 = bottom edge
 
-Mark the center of each cell. Be thorough but accurate.
-
-Respond ONLY with valid JSON in this exact format:
+Respond ONLY with valid JSON:
 {
   "locations": [
     {"x": 0.12, "y": 0.08},
@@ -99,7 +115,7 @@ export default async function handler(req: Request): Promise<Response> {
 
   try {
     const body = await req.json();
-    const { image, mode, targetType, targetLabel } = body;
+    const { image, mode, targetType, targetLabel, expectedCount } = body;
 
     if (!image || !mode || !targetLabel) {
       return new Response(
@@ -108,16 +124,18 @@ export default async function handler(req: Request): Promise<Response> {
       );
     }
 
+    const count = typeof expectedCount === 'number' && expectedCount > 0 ? expectedCount : 5;
+
     const base64Data = image.replace(/^data:image\/\w+;base64,/, '');
     const mediaType = image.startsWith('data:image/png') ? 'image/png' as const : 'image/jpeg' as const;
 
     const systemPrompt = mode === 'scout'
-      ? buildScoutPrompt(targetLabel)
-      : buildGermPrompt(targetLabel);
+      ? buildScoutPrompt(targetLabel, count)
+      : buildGermPrompt(targetLabel, count);
 
     const userText = mode === 'scout'
-      ? `Mark all ${targetLabel} on this sticky trap card. Return JSON with normalized coordinates.`
-      : `Mark all ${targetLabel} cells on this plug tray. Return JSON with normalized coordinates.`;
+      ? `A prior analysis found ${count} ${targetLabel} on this sticky trap card. Locate those ~${count} and return their coordinates as JSON.`
+      : `A prior analysis found ${count} ${targetLabel} cells on this plug tray. Locate those ~${count} and return their coordinates as JSON.`;
 
     const message = await client.messages.create({
       model: 'claude-sonnet-4-5-20250929',
