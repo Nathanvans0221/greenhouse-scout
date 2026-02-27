@@ -4,26 +4,11 @@ import { Camera, Zap, ArrowLeft, Save, Loader2, CheckCircle2, RotateCcw, X } fro
 import { useAppStore } from '../store/useAppStore';
 import { captureImage } from '../lib/camera';
 import { analyzeImage } from '../lib/analyze';
-import type { Scan as ScanType, PestCount, PestType, Trap } from '../types';
+import type { Scan as ScanType, PestCount, Trap } from '../types';
 import { PEST_LABELS, PEST_COLORS, ALERT_COLORS } from '../types';
 
 type ScanStep = 'select-trap' | 'capture' | 'analyzing' | 'results' | 'saved';
 
-const DEMO_PEST_TYPES: PestType[] = [
-  'whitefly', 'thrips', 'fungus_gnat', 'shore_fly', 'aphid', 'leafminer',
-];
-
-function generateDemoPests(): PestCount[] {
-  const numTypes = Math.floor(Math.random() * 4) + 1;
-  const shuffled = [...DEMO_PEST_TYPES].sort(() => Math.random() - 0.5);
-  const selected = shuffled.slice(0, numTypes);
-
-  return selected.map((type) => ({
-    type,
-    count: Math.floor(Math.random() * 25) + 1,
-    confidence: Math.round((0.65 + Math.random() * 0.3) * 100) / 100,
-  }));
-}
 
 export default function Scan() {
   const traps = useAppStore((s) => s.traps);
@@ -109,16 +94,6 @@ export default function Scan() {
     }
   }, []);
 
-  const handleDemoScan = useCallback(() => {
-    const demoPests = generateDemoPests();
-    const total = demoPests.reduce((sum, p) => sum + p.count, 0);
-    setImageData(null);
-    setPests(demoPests);
-    setTotalCount(total);
-    setStep('results');
-    setError(null);
-  }, []);
-
   const handleSave = useCallback(() => {
     const scan: ScanType = {
       id: uuidv4(),
@@ -180,14 +155,6 @@ export default function Scan() {
           >
             <Zap size={20} />
             Quick Scan
-          </button>
-
-          <button
-            onClick={handleDemoScan}
-            className="w-full h-12 mb-6 bg-white hover:bg-gray-50 active:bg-gray-100 text-gray-700 font-medium rounded-2xl border border-gray-200 flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
-          >
-            <Camera size={18} className="text-gray-500" />
-            Demo Scan (no camera needed)
           </button>
 
           {traps.length === 0 ? (
@@ -253,12 +220,6 @@ export default function Scan() {
             Take Photo
           </button>
 
-          <button
-            onClick={handleDemoScan}
-            className="mt-4 text-sm text-gray-500 underline underline-offset-2"
-          >
-            Use demo data instead
-          </button>
         </div>
       )}
 
