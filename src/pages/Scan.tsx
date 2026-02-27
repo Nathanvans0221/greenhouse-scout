@@ -1,6 +1,6 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { Camera, Zap, ArrowLeft, Save, Loader2, CheckCircle2, RotateCcw } from 'lucide-react';
+import { Camera, Zap, ArrowLeft, Save, Loader2, CheckCircle2, RotateCcw, X } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { captureImage } from '../lib/camera';
 import { analyzeImage } from '../lib/analyze';
@@ -37,6 +37,31 @@ export default function Scan() {
   const [totalCount, setTotalCount] = useState(0);
   const [notes, setNotes] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [statusMsg, setStatusMsg] = useState('Sending to AI...');
+  const [elapsed, setElapsed] = useState(0);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    if (step === 'analyzing') {
+      setElapsed(0);
+      timerRef.current = setInterval(() => setElapsed((e) => e + 1), 1000);
+      const msgs = [
+        { at: 3, msg: 'Identifying pest species...' },
+        { at: 8, msg: 'Counting insects on card...' },
+        { at: 14, msg: 'Almost done...' },
+        { at: 25, msg: 'Still working, large image...' },
+      ];
+      const timeouts = msgs.map((m) =>
+        setTimeout(() => setStatusMsg(m.msg), m.at * 1000),
+      );
+      return () => {
+        if (timerRef.current) clearInterval(timerRef.current);
+        timeouts.forEach(clearTimeout);
+      };
+    } else {
+      if (timerRef.current) clearInterval(timerRef.current);
+    }
+  }, [step]);
 
   const overallAlertLevel = pests.length > 0
     ? (() => {
@@ -60,12 +85,13 @@ export default function Scan() {
 
   const handleCapture = useCallback(async () => {
     setError(null);
+    setStatusMsg('Sending to AI...');
     try {
       const base64 = await captureImage();
       setImageData(base64);
       setStep('analyzing');
 
-      const result = await analyzeImage(base64);
+      const result = await analyzeImage(base64, (status) => setStatusMsg(status));
       if (result.error) {
         setError(result.error);
         setStep('capture');
@@ -79,6 +105,7 @@ export default function Scan() {
         return;
       }
       setError(err instanceof Error ? err.message : 'Failed to capture image');
+      setStep('capture');
     }
   }, []);
 
@@ -237,17 +264,41 @@ export default function Scan() {
 
       {/* Step: Analyzing */}
       {step === 'analyzing' && (
-        <div className="flex flex-col items-center pt-12">
+        <div className="flex flex-col items-center pt-8">
           {imageData && (
             <img
               src={imageData}
               alt="Captured"
-              className="w-48 h-48 rounded-3xl object-cover mb-8 shadow-sm"
+              className="w-40 h-40 rounded-3xl object-cover mb-6 shadow-sm"
             />
           )}
-          <Loader2 size={40} className="text-green-600 animate-spin mb-4" />
-          <p className="text-sm font-medium text-gray-700">Analyzing sticky trap...</p>
-          <p className="text-xs text-gray-500 mt-1">Identifying and counting pests</p>
+
+          {/* Progress ring */}
+          <div className="relative mb-5">
+            <Loader2 size={48} className="text-green-600 animate-spin" />
+            <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-green-700">
+              {elapsed}s
+            </span>
+          </div>
+
+          <p className="text-base font-semibold text-gray-800 mb-1">{statusMsg}</p>
+          <p className="text-xs text-gray-400">This usually takes 10-20 seconds</p>
+
+          {/* Progress bar */}
+          <div className="w-full max-w-xs mt-5 h-2 bg-gray-200 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-green-500 rounded-full transition-all duration-1000 ease-out"
+              style={{ width: `${Math.min((elapsed / 20) * 100, 95)}%` }}
+            />
+          </div>
+
+          <button
+            onClick={handleReset}
+            className="mt-6 h-10 px-5 text-sm text-gray-500 border border-gray-200 rounded-xl flex items-center gap-1.5 hover:bg-gray-50 active:bg-gray-100"
+          >
+            <X size={14} />
+            Cancel
+          </button>
         </div>
       )}
 

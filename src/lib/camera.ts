@@ -12,7 +12,7 @@ export async function captureImage(): Promise<string> {
         return;
       }
       try {
-        const resized = await resizeImage(file, 1600);
+        const resized = await resizeImage(file, 1024);
         resolve(resized);
       } catch (err) {
         reject(err);
